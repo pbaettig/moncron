@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  
+  pushgw:
+    image: prom/pushgateway
+    ports:
+      - 9091:9091
+  # webhook:
+  #   image: nginx
+  #   ports:
+  #     - 8080:80
+  webhook:
+    image: ealen/echo-server:0.9.2
+    ports:
+      - 8080:80

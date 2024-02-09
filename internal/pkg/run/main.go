@@ -9,32 +9,33 @@ import (
 )
 
 type CommandResult struct {
-	ExitCode       int
-	SystemTimeNano int64
-	UserTimeNano   int64
-	WallTime       time.Duration
-	Killed         bool
-	ReceivedSignal syscall.Signal
-	MaxRSS         int64
-	Stdout         string
-	Stderr         string
+	ExitCode        int
+	SystemTimeMilli float64
+	UserTimeMilli   float64
+	WallTime        time.Duration
+	Killed          bool
+	ReceivedSignal  syscall.Signal
+	MaxRSS          int64
+	Stdout          string
+	Stderr          string
 }
 
 type Command struct {
-	Name   string
-	Args   []string
-	ctx    context.Context
-	cancel context.CancelFunc
+	Name       string
+	Executable string
+	Args       []string
+	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
-func NewCommand(args []string, timeout time.Duration) Command {
+func NewCommand(args []string, name string, timeout time.Duration) Command {
 	var (
 		bgCtx context.Context = context.Background()
 	)
 
 	command := Command{
-		Name: args[0],
-		Args: args[1:len(args)],
+		Executable: args[0],
+		Args:       args[1:],
 	}
 
 	if timeout > 0 {
@@ -50,13 +51,13 @@ func (c Command) Execute() (CommandResult, error) {
 	var result CommandResult = CommandResult{}
 
 	defer c.cancel()
-	cmd := exec.CommandContext(c.ctx, c.Name, c.Args...)
+	cmd := exec.CommandContext(c.ctx, c.Executable, c.Args...)
 	cmd.Stdout = new(strings.Builder)
 	cmd.Stderr = new(strings.Builder)
 
 	start := time.Now()
 	err := cmd.Run()
-	result.WallTime = time.Now().Sub(start)
+	result.WallTime = time.Since(start)
 	result.ExitCode = cmd.ProcessState.ExitCode()
 	result.Stdout = cmd.Stdout.(*strings.Builder).String()
 	result.Stderr = cmd.Stderr.(*strings.Builder).String()
@@ -69,8 +70,8 @@ func (c Command) Execute() (CommandResult, error) {
 
 	rusage, ok := cmd.ProcessState.SysUsage().(*syscall.Rusage)
 	if ok {
-		result.SystemTimeNano = rusage.Stime.Nano() / 1000 / 1000
-		result.UserTimeNano = rusage.Utime.Nano() / 1000 / 1000
+		result.SystemTimeMilli = float64(rusage.Stime.Nano()) / 1000 / 1000
+		result.UserTimeMilli = float64(rusage.Utime.Nano()) / 1000 / 1000
 		result.MaxRSS = rusage.Maxrss
 	}
 
