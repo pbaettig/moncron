@@ -31,6 +31,9 @@ func gatherTargets(args *cmdlineArgs) []target.ResultTarget {
 		targets = append(targets, target.NewFile(args.LogFile, args.LogFileMaxSize))
 	}
 
+	if args.Stdout {
+		targets = append(targets, target.Stdout{})
+	}
 	return targets
 
 }
@@ -76,9 +79,15 @@ func parseArgs() *cmdlineArgs {
 		return args
 	}
 
+	if args.JobName == "" {
+		flag.Usage()
+		fmt.Fprintln(os.Stderr, "-name is required")
+		os.Exit(1)
+	}
+
 	if len(args.ProcessCmdline) == 0 {
 		flag.Usage()
-		fmt.Println("nothing to execute")
+		fmt.Fprintln(os.Stderr, "nothing to execute")
 		os.Exit(1)
 	}
 
