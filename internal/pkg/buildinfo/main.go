@@ -1,0 +1,5 @@
+package buildinfo
+
+var (
+	Version = ""
+)

@@ -5,5 +5,6 @@ import (
 )
 
 type ResultTarget interface {
-	Push(name string, r run.CommandResult) error
+	Push(r *run.Command) error
+	Name() string
 }

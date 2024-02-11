@@ -11,11 +11,8 @@ services:
     image: prom/pushgateway
     ports:
       - 9091:9091
-  # webhook:
-  #   image: nginx
-  #   ports:
-  #     - 8080:80
+
   webhook:
-    image: ealen/echo-server:0.9.2
+    image: ealen/echo-server:0.9.2 # nginx
     ports:
       - 8080:80

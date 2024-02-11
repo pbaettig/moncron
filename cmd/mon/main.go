@@ -1,59 +1,24 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
-	"time"
+	"strconv"
 
+	"github.com/pbaettig/moncron/internal/pkg/buildinfo"
 	"github.com/pbaettig/moncron/internal/pkg/run"
 	"github.com/pbaettig/moncron/internal/pkg/target"
+	log "github.com/sirupsen/logrus"
 )
 
-type cmdlineArgs struct {
-	Timeout        time.Duration
-	JobName        string
-	PushgatewayURL string
-	WebhookURL     string
-	Verbose        bool
-	ProcessCmdline []string
-}
+var (
+	logger *log.Entry
+)
 
-func (c *cmdlineArgs) Parse() error {
-	flag.DurationVar(&c.Timeout, "timeout", time.Duration(0), "timeout value")
-	flag.StringVar(&c.JobName, "name", "", "job name")
-	flag.StringVar(&c.PushgatewayURL, "pushgw", "http://localhost:9091", "Prometheus pushgateway URL")
-	flag.StringVar(&c.WebhookURL, "web", "http://localhost:8080", "Webhook URL")
-	flag.BoolVar(&c.Verbose, "verbose", false, "")
-	flag.Parse()
-	if c.JobName == "" {
-		return errors.New("-name cannot be empty")
-	}
-
-	c.ProcessCmdline = flag.Args()
-	return nil
-}
-
-func main() {
-	exitCode := 0
-
-	args := new(cmdlineArgs)
-	if err := args.Parse(); err != nil {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	if len(args.ProcessCmdline) == 0 {
-		flag.Usage()
-		fmt.Println("nothing to execute")
-		os.Exit(1)
-	}
-
+func gatherTargets(args *cmdlineArgs) []target.ResultTarget {
 	targets := make([]target.ResultTarget, 0)
-
 	if args.PushgatewayURL != "" {
 		targets = append(targets, target.NewPrometheusPushgateway(args.PushgatewayURL))
 	}
@@ -62,33 +27,95 @@ func main() {
 		targets = append(targets, target.NewWebhook(args.WebhookURL))
 	}
 
-	fmt.Printf("running %s...\n", args.JobName)
-	cmd := run.NewCommand(args.ProcessCmdline, args.JobName, args.Timeout)
-	result, err := cmd.Execute()
-
-	fmt.Fprint(os.Stdout, result.Stdout)
-	fmt.Fprint(os.Stderr, result.Stderr)
-	exitCode = result.ExitCode
-
-	for _, target := range targets {
-		if err := target.Push(args.JobName, result); err != nil {
-			fmt.Println(err)
-		}
+	if args.LogFile != "" {
+		targets = append(targets, target.NewFile(args.LogFile, args.LogFileMaxSize))
 	}
+
+	return targets
+
+}
+
+func runCommand(cmd *run.Command) {
+
+	err := cmd.Start()
+	if err != nil {
+		logger.Errorf("unable to start: %s", err)
+	}
+	logger.Infoln("started")
+
+	err = cmd.Wait()
+
+	var exitStatus string
+	if cmd.Result.Killed {
+		exitStatus = "killed"
+	} else {
+		exitStatus = strconv.Itoa(cmd.Result.ExitCode)
+	}
+	l := logger.WithField("exit", exitStatus)
 
 	if err != nil {
-		switch err.(type) {
+		switch e := err.(type) {
 		case *exec.ExitError:
-			fmt.Printf("command failed with Exit code: %d\n", err.(*exec.ExitError).ExitCode())
-			fmt.Printf("Error was: %s", err.Error())
+			l.Warningf("command failed: %+v", e)
+			e.Sys()
 		default:
-			if errors.Is(err, context.DeadlineExceeded) {
-				fmt.Println("deadline exceeded, increase timeout")
-			}
-
+			l.Error(err)
+			os.Exit(1)
 		}
+	} else {
+		l.Infoln("command finished successfully")
+	}
+}
 
+func parseArgs() *cmdlineArgs {
+	args := new(cmdlineArgs)
+	args.Parse()
+
+	if args.Version {
+		// don't perform any further checks
+		return args
 	}
 
-	os.Exit(exitCode)
+	if len(args.ProcessCmdline) == 0 {
+		flag.Usage()
+		fmt.Println("nothing to execute")
+		os.Exit(1)
+	}
+
+	if args.Quiet {
+		log.SetLevel(log.PanicLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+
+	return args
+}
+
+func main() {
+	args := parseArgs()
+	if args.Version {
+		fmt.Printf(buildinfo.Version)
+		os.Exit(0)
+	}
+
+	logger = log.WithFields(log.Fields{"name": args.JobName})
+
+	targets := gatherTargets(args)
+
+	cmd := run.NewCommand(args.ProcessCmdline, args.JobName, args.Timeout)
+	runCommand(cmd)
+
+	for _, target := range targets {
+		l := logger.WithField("target", target.Name())
+		if err := target.Push(cmd); err != nil {
+			l.Warnf("could not push results to %s\n", err)
+		} else {
+			l.Infof("successfully pushed results")
+		}
+	}
+
+	fmt.Println()
+	fmt.Fprint(os.Stdout, cmd.Result.Stdout)
+	fmt.Fprint(os.Stderr, cmd.Result.Stderr)
+	os.Exit(0)
 }
