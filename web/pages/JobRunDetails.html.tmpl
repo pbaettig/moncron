@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <!--<link rel="stylesheet" href="/static/simple.min.css">-->
+        <link rel="stylesheet" href="/static/pico.min.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+        <link rel="manifest" href="/static/site.webmanifest">
+    </head>
+    <body class="container-fluid">
+        <header>
+            <nav aria-label="breadcrumb">
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/runs.html?job={{.Run.Name}}">Job Runs</a></li>
+                    <li>{{.Run.ID}}</li>
+                </ul>
+            </nav>
+            <h2>Job Run {{.Run.ID}}</h2>
+        </header>
+
+        <main>
+            <table>
+                <tr>
+                    <td><b>Job name:</b></td>
+                    <td><a href="/runs.html?job={{.Run.Name}}">{{.Run.Name}}</a></td>
+                </tr>
+                <tr>
+                    <td><b>Ran on:</b></td>
+                    <td><a href="/runs.html?host={{.Run.Host.Name}}">{{.Run.Host.Name}}</a></td>
+                </tr>
+                <tr>
+                    <td><b>Started At:</b></td>
+                    <td>{{.Run.StartedAt}}</td>
+                </tr>
+                <tr>
+                    <td><b>Finished At:</b></td>
+                    <td>{{.Run.FinishedAt}}</td>
+                </tr>
+                <tr>
+                    <td><b>Exit code:</b></td>
+                    <td>{{.Run.Result.ExitCode}} {{if eq .Run.Result.ExitCode 0}}✅{{else}}❌{{end}} {{if gt .Run.Result.ReceivedSignal 0}}(received signal: {{.Run.Result.ReceivedSignal}}){{end}}</td>
+                </tr>
+                <tr>
+                    <td><b>Duration:</b></td>
+                    <td>{{.Run.Result.WallTime}}</td>
+                </tr>
+                <tr>
+                    <td><b>CPU Time:</b></td>
+                    <td>{{.Run.Result.SystemTime}} sys / {{.Run.Result.UserTime}} user</td>
+                </tr>
+                <tr>
+                    <td><b>Max. RSS</b></td>
+                    <td>{{convertBytes .Run.Result.MaxRssBytes}}</td>
+                </tr>
+            </table>
+            <hr>
+            <div>
+            <h3>Previous runs (showing {{ len .Others }} out of {{.TotalOthers}})</h3>
+            <table>
+            {{$runID := .Run.ID}}
+            {{range .Others}}
+                <tr>
+                    <td>{{if eq .Result.ExitCode 0}}✅{{else}}❌{{end}}</td>
+                    <td>finished {{.FinishedAt}} on <a href="/runs.html?host={{.Host.Name}}">{{.Host.Name}}</a></td>
+                    <td>{{if ne .ID $runID}}<a href="/run.html?id={{.ID}}">Details</a>{{end}}</td>
+                </tr>
+            {{end}}
+            </table>
+            {{if gt (len .Others) 0}}
+                <a href="/runs.html?job={{.Run.Name}}&before={{.Run.FinishedAt|escapeTime}}">Show All</a>
+            {{end}}
+            </div>
+            <hr>
+            <details {{if .Run.Result.Stdout}} open={true} {{end}}>
+                <summary><h3>stdout</h3></summary>
+                <article>
+                    <textarea rows=20 name="stdout" style='font-family: "Lucida Console", Courier, monospace;' readonly>{{.Run.Result.Stdout}}</textarea>
+                </article>
+            </details>
+                
+
+            <details {{if .Run.Result.Stderr}} open={true} {{end}}>
+                    <summary><h3>stderr</h3></summary>
+                    <article>
+                        <textarea rows=20 name="stderr" style='font-family: Courier, monospace;' readonly>{{.Run.Result.Stderr}}</textarea>
+                    </article>
+            </details>
+        </main>
+    </body>
+</html>

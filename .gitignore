@@ -1,0 +1,5 @@
+*.db
+.pytest_cache
+.vscode
+test/venv
+__pycache__

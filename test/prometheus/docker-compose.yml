@@ -13,6 +13,6 @@ services:
       - 9091:9091
 
   webhook:
-    image: ealen/echo-server:0.9.2 # nginx
+    image: mendhak/http-https-echo # nginx
     ports:
-      - 8080:80
+      - 8080:8080

@@ -1,9 +1,7 @@
 package target
 
 import (
-	"fmt"
-
-	"github.com/pbaettig/moncron/internal/pkg/run"
+	"github.com/pbaettig/moncron/internal/pkg/model"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
 )
@@ -30,17 +28,14 @@ func (p PrometheusPushgateway) Name() string {
 	return "prometheus-pushgateway"
 }
 
-func (p PrometheusPushgateway) Push(r *run.Command) error {
-	if r == nil {
-		return fmt.Errorf("nothing to push")
-	}
+func (p PrometheusPushgateway) Push(r model.JobRun) error {
 
 	p.exitCodeGauge.WithLabelValues(r.Name).Set(float64(r.Result.ExitCode))
 	p.durationGauge.WithLabelValues(r.Name).Set(r.Result.WallTime.Seconds())
 	p.maxRssGauge.WithLabelValues(r.Name).Set(float64(r.Result.MaxRssBytes))
 	p.lastExecutionGauge.WithLabelValues(r.Name).SetToCurrentTime()
-	p.userTimeGauge.WithLabelValues(r.Name).Set(float64(r.Result.UserTime.Nano()) / 1000 / 1000 / 1000)
-	p.systemTimeGauge.WithLabelValues(r.Name).Set(float64(r.Result.SystemTime.Nano()) / 1000 / 1000 / 1000)
+	p.userTimeGauge.WithLabelValues(r.Name).Set(float64(r.Result.UserTime.Seconds()))
+	p.systemTimeGauge.WithLabelValues(r.Name).Set(float64(r.Result.SystemTime.Seconds()))
 
 	return push.New(p.URL, r.Name).Gatherer(p.Registry).Push()
 }

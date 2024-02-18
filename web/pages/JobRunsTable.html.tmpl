@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <!--<link rel="stylesheet" href="/static/simple.min.css">-->
+        <link rel="stylesheet" href="/static/pico.min.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+        <link rel="manifest" href="/static/site.webmanifest">
+    </head>
+    <body class="container-fluid">
+        <header>
+            <nav aria-label="breadcrumb">
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li>Job Runs</li>
+                </ul>
+            </nav>
+            <h1>Job runs</h1>
+        </header>
+        <main>
+            <table>
+                <tr>
+                    <th scope="col"><h6>Finished At</h6></th>
+                    <th scope="col"><h6>Age</h6></th>
+                    <th scope="col"><h6>Name</h6></th>
+                    <th scope="col"><h6>Host</h6></th>
+                    <th scope="col"><h6>Exitcode</h6></th>
+                    <th scope="col"></th>
+                    <th scope="col"></th>
+            </tr>
+            {{range .Runs}}
+                <tr>
+                    <td>{{.FinishedAt}}</td>
+                    <td>{{ since .FinishedAt }}</td>
+                    <td><a href="?job={{.Name}}">{{.Name}}</a></td>
+                    <td><a href="?host={{.Host.Name}}">{{.Host.Name}}</a></td>
+                    <td style="text-align:right">{{.Result.ExitCode}}</td>
+                    <td>{{if eq .Result.ExitCode 0}}✅{{else}}❌{{end}}</td>
+                    <td><a href="/run.html?id={{.ID}}">Details</a></td>
+                </tr>
+            {{end}}
+
+            </table>
+        </main>
+        <footer>
+            <small>{{add (mult (sub .PageNum 1) (.PageSize)) (len .Runs)}} / {{.Total}} | Page {{.PageNum}}/{{.TotalPages}}{{if .NextPageURL}} | <a href="{{.NextPageURL}}"> Next ></a>{{end}}</small>
+        </footer>
+    </body>
+</html>

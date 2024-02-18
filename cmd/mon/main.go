@@ -4,11 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
-	"strconv"
 
 	"github.com/pbaettig/moncron/internal/pkg/buildinfo"
-	"github.com/pbaettig/moncron/internal/pkg/run"
+	"github.com/pbaettig/moncron/internal/pkg/model"
 	"github.com/pbaettig/moncron/internal/pkg/target"
 	log "github.com/sirupsen/logrus"
 )
@@ -38,38 +36,6 @@ func gatherTargets(args *cmdlineArgs) []target.ResultTarget {
 
 }
 
-func runCommand(cmd *run.Command) {
-
-	err := cmd.Start()
-	if err != nil {
-		logger.Errorf("unable to start: %s", err)
-	}
-	logger.Infoln("started")
-
-	err = cmd.Wait()
-
-	var exitStatus string
-	if cmd.Result.Killed {
-		exitStatus = "killed"
-	} else {
-		exitStatus = strconv.Itoa(cmd.Result.ExitCode)
-	}
-	l := logger.WithField("exit", exitStatus)
-
-	if err != nil {
-		switch e := err.(type) {
-		case *exec.ExitError:
-			l.Warningf("command failed: %+v", e)
-			e.Sys()
-		default:
-			l.Error(err)
-			os.Exit(1)
-		}
-	} else {
-		l.Infoln("command finished successfully")
-	}
-}
-
 func parseArgs() *cmdlineArgs {
 	args := new(cmdlineArgs)
 	args.Parse()
@@ -81,14 +47,12 @@ func parseArgs() *cmdlineArgs {
 
 	if args.JobName == "" {
 		flag.Usage()
-		fmt.Fprintln(os.Stderr, "-name is required")
-		os.Exit(1)
+		log.Fatalln("-name is required")
 	}
 
 	if len(args.ProcessCmdline) == 0 {
 		flag.Usage()
-		fmt.Fprintln(os.Stderr, "nothing to execute")
-		os.Exit(1)
+		log.Fatalln("nothing to execute")
 	}
 
 	if args.Quiet {
@@ -107,24 +71,34 @@ func main() {
 		os.Exit(0)
 	}
 
-	logger = log.WithFields(log.Fields{"name": args.JobName})
-
 	targets := gatherTargets(args)
 
-	cmd := run.NewCommand(args.ProcessCmdline, args.JobName, args.Timeout)
-	runCommand(cmd)
+	logger = log.WithFields(log.Fields{"name": args.JobName})
+
+	job := &model.Job{Name: args.JobName}
+	job.WithCommand(model.NewCommand(args.ProcessCmdline, args.Timeout)).
+		WithSchedule("*/5 * * * *")
+
+	jobRun, err := job.Run()
+	if err != nil {
+		log.Errorf("Error running %s: %s", args.JobName, err)
+	}
 
 	for _, target := range targets {
 		l := logger.WithField("target", target.Name())
-		if err := target.Push(cmd); err != nil {
+		if err := target.Push(jobRun); err != nil {
 			l.Warnf("could not push results to %s\n", err)
 		} else {
 			l.Infof("successfully pushed results")
 		}
 	}
 
+	// encoder := json.NewEncoder(os.Stdout)
+	// encoder.SetIndent("", "  ")
+	// encoder.Encode(jobRun)
+
 	fmt.Println()
-	fmt.Fprint(os.Stdout, cmd.Result.Stdout)
-	fmt.Fprint(os.Stderr, cmd.Result.Stderr)
+	fmt.Fprint(os.Stdout, jobRun.Result.Stdout)
+	fmt.Fprint(os.Stderr, jobRun.Result.Stderr)
 	os.Exit(0)
 }

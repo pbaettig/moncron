@@ -1,10 +1,10 @@
 package target
 
 import (
-	"github.com/pbaettig/moncron/internal/pkg/run"
+	"github.com/pbaettig/moncron/internal/pkg/model"
 )
 
 type ResultTarget interface {
-	Push(r *run.Command) error
+	Push(r model.JobRun) error
 	Name() string
 }

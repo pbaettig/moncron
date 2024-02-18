@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <!--<link rel="stylesheet" href="/static/simple.min.css">-->
+        <link rel="stylesheet" href="/static/pico.min.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+        <link rel="manifest" href="/static/site.webmanifest">
+    </head>
+    <body class="container-fluid">
+        <header>
+            <nav aria-label="breadcrumb">
+                <ul>
+                    <li>Home</li>
+                </ul>
+            </nav>
+        </header>
+        <main>
+            <div class="grid">
+                <div>
+                    <h3>Jobs</h3>
+                    <fieldset role="group">
+                        <input id="jobs-input" list="jobs-datalist" name="jobs">
+                            <datalist id="jobs-datalist">
+                            {{range .JobNames}}
+                            <option>{{.}}</option>
+                            {{end}}
+                            </datalist>
+                        </input>
+                        <button id="jobs-button" disabled>Go!</button>
+                    </fieldset>
+                    <table>
+                    {{range .JobNames}}
+                        <tr>
+                        <td><a href="/runs.html?job={{.}}">{{.}}</a></td>
+                        </tr>
+                    {{end}}
+                    </table>
+                </div>
+
+                <div>
+                    <h3>Hosts</h3>
+                    <fieldset role="group">
+                        <input id="hosts-input" list="hosts-datalist" name="hosts">
+                            <datalist id="hosts-datalist">
+                            {{range .Hosts}}
+                            <option>{{.Name}}</option>
+                            {{end}}
+                            </datalist>
+                        </input>
+                        <button id="hosts-button" disabled>Go!</button>
+                    </fieldset>
+        
+                    <table>
+                    {{range .Hosts}}
+                        <tr>
+                        <td><a href="/runs.html?host={{.Name}}">{{.Name}}</a></td>
+                        </tr>
+                    {{end}}
+                    </table>
+                </div>
+            </div>
+        </main>
+        <script>
+            const hostsDatalist = document.getElementById("hosts-datalist")
+            const hostsInput = document.getElementById("hosts-input")
+            const hostsButton = document.getElementById("hosts-button")
+
+            const jobsDatalist = document.getElementById("jobs-datalist")
+            const jobsInput = document.getElementById("jobs-input")
+            const jobsButton = document.getElementById("jobs-button")
+
+            hostsInput.addEventListener('input',(evt) => {
+                console.log(evt)
+                console.log(hostsInput.value)
+                if (evt.inputType == 'insertReplacementText') {
+                    console.log('update...')
+                    hostsButton.disabled = false
+                    return
+                }
+
+                for (var i = 0; i < hostsDatalist.children.length; i++) {
+                    var option = hostsDatalist.children[i];
+                    if (hostsInput.value == option.value) {
+                        console.log('update (value matched)...')
+                        hostsButton.disabled = false
+
+                        return
+                    }
+                }
+                hostsButton.disabled = true
+            })
+            jobsButton.addEventListener('click', (evt) => {
+                window.open(`/runs.html?job=${jobsInput.value}`, '_blank').focus()
+                jobsInput.value = ""
+            })
+            hostsButton.addEventListener('click', (evt) => {
+                window.open(`/runs.html?host=${hostsInput.value}`, '_blank').focus()
+                hostsInput.value = ""
+                hostsInput.value = ""
+            })
+            jobsInput.addEventListener('input',(evt) => {
+                console.log(evt)
+                console.log(jobsInput.value)
+                if (evt.inputType == 'insertReplacementText') {
+                    // var event = new CustomEvent("click", { "detail": "Example of an event" });
+                    // jobsButton.dispatchEvent(event)
+                    jobsButton.disabled = false
+                    return
+                }
+
+                for (var i = 0; i < jobsDatalist.children.length; i++) {
+                    var option = jobsDatalist.children[i];
+                    if (jobsInput.value == option.value) {
+                        console.log('update (value matched)...')
+                        jobsButton.disabled = false
+
+                        return
+                    }
+                }
+                jobsButton.disabled = true
+            })
+        </script>
+    </body>
+</html>

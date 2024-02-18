@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pbaettig/moncron/internal/pkg/run"
+	"github.com/pbaettig/moncron/internal/pkg/model"
 )
 
 type File struct {
@@ -25,10 +25,8 @@ func NewFile(path string, maxSize int64) File {
 	}
 }
 
-func (f File) Push(r *run.Command) error {
-	if r == nil {
-		return fmt.Errorf("nothing to push")
-	}
+func (f File) Push(r model.JobRun) error {
+
 	fd, err := os.OpenFile(f.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return err

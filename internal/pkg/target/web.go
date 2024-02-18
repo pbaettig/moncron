@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/pbaettig/moncron/internal/pkg/run"
+	"github.com/pbaettig/moncron/internal/pkg/model"
 )
 
 type Webhook struct {
@@ -15,20 +15,18 @@ type Webhook struct {
 	method string
 }
 
-type WebhookContent struct {
-	Command    run.Command
-	ExecutedAt string
-	Result     run.CommandResult
-}
+// type WebhookContent struct {
+// 	Command    run.Command
+// 	ExecutedAt string
+// 	Result     run.CommandResult
+// }
 
 func (w Webhook) Name() string {
 	return fmt.Sprintf("%s-webhook", w.method)
 }
 
-func (w Webhook) Push(r *run.Command) error {
-	if r == nil {
-		return fmt.Errorf("nothing to push")
-	}
+func (w Webhook) Push(r model.JobRun) error {
+
 	body, err := json.Marshal(r)
 	if err != nil {
 		return err
@@ -44,7 +42,7 @@ func (w Webhook) Push(r *run.Command) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode >= 400 {
 		return fmt.Errorf("HTTP Error: %s", resp.Status)
 	}
 
