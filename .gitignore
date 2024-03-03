@@ -3,3 +3,7 @@
 .vscode
 test/venv
 __pycache__
+mon
+!cmd/mon
+server
+!cmd/server
