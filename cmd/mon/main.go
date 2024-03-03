@@ -21,8 +21,8 @@ func gatherTargets(args *cmdlineArgs) []target.ResultTarget {
 		targets = append(targets, target.NewPrometheusPushgateway(args.PushgatewayURL))
 	}
 
-	if args.WebhookURL != "" {
-		targets = append(targets, target.NewWebhook(args.WebhookURL))
+	if args.MonServerURL != "" {
+		targets = append(targets, target.NewWebhook(args.MonServerURL))
 	}
 
 	if args.LogFile != "" {
@@ -38,7 +38,7 @@ func gatherTargets(args *cmdlineArgs) []target.ResultTarget {
 
 func parseArgs() *cmdlineArgs {
 	args := new(cmdlineArgs)
-	args.Parse()
+	args.FromCmdline()
 
 	if args.Version {
 		// don't perform any further checks
@@ -65,7 +65,16 @@ func parseArgs() *cmdlineArgs {
 }
 
 func main() {
-	args := parseArgs()
+	args := new(cmdlineArgs)
+	// take values from the environment first
+	args.FromEnv()
+	// use values form cmdline second, giving them priority over
+	// whatever was defined in the env vars
+	args.FromCmdline()
+
+	if err := args.Validate(); err != nil {
+		log.Fatalln(err)
+	}
 	if args.Version {
 		fmt.Printf(buildinfo.Version)
 		os.Exit(0)
@@ -76,8 +85,7 @@ func main() {
 	logger = log.WithFields(log.Fields{"name": args.JobName})
 
 	job := &model.Job{Name: args.JobName}
-	job.WithCommand(model.NewCommand(args.ProcessCmdline, args.Timeout)).
-		WithSchedule("*/5 * * * *")
+	job.WithCommand(model.NewCommand(args.ProcessCmdline, args.Timeout))
 
 	jobRun, err := job.Run()
 	if err != nil {
@@ -92,10 +100,6 @@ func main() {
 			l.Infof("successfully pushed results")
 		}
 	}
-
-	// encoder := json.NewEncoder(os.Stdout)
-	// encoder.SetIndent("", "  ")
-	// encoder.Encode(jobRun)
 
 	fmt.Println()
 	fmt.Fprint(os.Stdout, jobRun.Result.Stdout)
