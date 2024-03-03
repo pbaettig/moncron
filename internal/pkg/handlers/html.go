@@ -111,9 +111,9 @@ func (h *HtmlJobRunsTableHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 }
 
 type jobRunDetailsData struct {
-	Run         model.JobRun
-	Others      []model.JobRun
-	TotalOthers int
+	Run           model.JobRun
+	Previous      []model.JobRun
+	TotalPrevious int
 }
 
 type HtmlJobRunDetailsHandler struct {
@@ -137,7 +137,7 @@ func (h *HtmlJobRunDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	data.Others, data.TotalOthers, _, _ = h.GetByNameBefore(data.Run.Name, data.Run.FinishedAt, 0, 7)
+	data.Previous, data.TotalPrevious, _, _ = h.GetByNameBefore(data.Run.Name, data.Run.FinishedAt, 0, 7)
 
 	err = tmpl.Execute(w, data)
 	if err != nil {

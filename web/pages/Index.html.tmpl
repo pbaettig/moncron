@@ -31,7 +31,7 @@
                         </input>
                         <button id="jobs-button" disabled>Go!</button>
                     </fieldset>
-                    <table>
+                    <table class="striped">
                     {{range .JobNames}}
                         <tr>
                         <td><a href="/runs.html?job={{.}}">{{.}}</a></td>
@@ -53,7 +53,7 @@
                         <button id="hosts-button" disabled>Go!</button>
                     </fieldset>
         
-                    <table>
+                    <table class="striped">
                     {{range .Hosts}}
                         <tr>
                         <td><a href="/runs.html?host={{.Name}}">{{.Name}}</a></td>

@@ -20,27 +20,31 @@
             <h1>Job runs</h1>
         </header>
         <main>
-            <table>
-                <tr>
-                    <th scope="col"><h6>Finished At</h6></th>
-                    <th scope="col"><h6>Age</h6></th>
-                    <th scope="col"><h6>Name</h6></th>
-                    <th scope="col"><h6>Host</h6></th>
-                    <th scope="col"><h6>Exitcode</h6></th>
-                    <th scope="col"></th>
-                    <th scope="col"></th>
-            </tr>
-            {{range .Runs}}
-                <tr>
-                    <td>{{.FinishedAt}}</td>
-                    <td>{{ since .FinishedAt }}</td>
-                    <td><a href="?job={{.Name}}">{{.Name}}</a></td>
-                    <td><a href="?host={{.Host.Name}}">{{.Host.Name}}</a></td>
-                    <td style="text-align:right">{{.Result.ExitCode}}</td>
-                    <td>{{if eq .Result.ExitCode 0}}✅{{else}}❌{{end}}</td>
-                    <td><a href="/run.html?id={{.ID}}">Details</a></td>
-                </tr>
-            {{end}}
+            <table class="striped">
+                <thead>
+                    <tr>
+                        <th scope="col">Finished At</h6></th>
+                        <th scope="col">Age</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Host</th>
+                        <th scope="col">Exitcode</th>
+                        <th scope="col"></th>
+                        <th scope="col"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {{range .Runs}}
+                    <tr>
+                        <td>{{.FinishedAt}}</td>
+                        <td>{{ since .FinishedAt }}</td>
+                        <td><a href="?job={{.Name}}">{{.Name}}</a></td>
+                        <td><a href="?host={{.Host.Name}}">{{.Host.Name}}</a></td>
+                        <td style="text-align:right">{{.Result.ExitCode}}</td>
+                        <td>{{if eq .Result.ExitCode 0}}✅{{else}}❌{{end}}</td>
+                        <td><a href="/run.html?id={{.ID}}">Details</a></td>
+                    </tr>
+                {{end}}
+                </tbody>
 
             </table>
         </main>
