@@ -1,21 +1,20 @@
 # moncron
+moncron is a wrapper for running scheduled jobs of any kind. It will execute whatever commandline you provide and gather metrics about the execution, which are then forwarded to a prometheus pushgateway, POSTed to a webhook URL or recorded in a local file.
 
-## mon
-mon is a wrapper for running scheduled jobs of any kind. It will execute whatever commandline you provide and gather metrics about the execution, which are then forwarded to a prometheus pushgateway, POSTed to a webhook URL or recorded in a local file.
-### Parameters
+## Parameters
 - `-name`: a free-form name that is used to identify the run in logs / metrics
 - `-quiet`: disables all extra output and only displays the executed commands stdout and stderr
 - `-timeout`: max. duration to wait for the specified command. If execution exceeds the provided timeout the process will be forcefully killed
 
 
-#### Targets
+### Targets
 - `-pushgw`: URL to Prometheus Pushgateway instance. If provided metrics about the job execution are sent to it.
-- `-web`: URL to a webserver accepting POST requests containing job execution details in JSON format. You can use you're own webhook or use the `server` provided by moncron. In the latter case use the path `/api/runs`.
+- `-web`: URL to a webserver accepting POST requests containing job execution details in JSON format
 - `-log`: path to a local file where execution details are appended to
 - `-log-size`: max. file size in bytes. The program will truncate the file if it grows beyond the size specified here
 - `-stdout`: print execution details to stdout
 
-### Examples
+## Examples
 ```
 ./mon -name sleep -stdout -- sleep 2 | jq
 INFO[0000] started                                       name=sleep
@@ -57,12 +56,3 @@ INFO[0002] successfully pushed results                   name=sleep target=stdou
   }
 }
 ```
-
-## server
-moncron comes with a server that stores job run results in a SQLite DB and exposes a HTML interface as well as a JSON API.
-
-### Parameters
-- `-listen`: listen address for the HTTP server (default is 0.0.0.)
-- `-port`: listen port for the HTTP server (default is 8088)
-- `-db`: path to the SQLite DB file used to store Job runs (default is test.db)
-- `-timeout`: graceful shutdown timeout for the HTTP server (default is 15 s)
