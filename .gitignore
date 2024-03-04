@@ -7,3 +7,4 @@ mon
 !cmd/mon
 server
 !cmd/server
+scratch

@@ -3,20 +3,7 @@
 - jobs should be able to be registered by the user or with a tool that parses cron files
 - jobs that push results to the server without it's knowledge are unregistered jobs, an unregistered job can be registered directly
 
-## Job
-- Name
-- Description
-- Command 
-- Schedule
-
-## JobRun
-- Job
-- Run info:
-    - Host the job ran on
-    - Environment
-    - User
-    - Resources (RSS, System/User/Wall Time)
-    - Timestamp
-    - Result (returncode, stdout, stderr, Signals / killed)
+# mon
+- use gopsutil to gather more details about started processes
 
 
