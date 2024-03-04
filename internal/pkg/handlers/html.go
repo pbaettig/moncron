@@ -52,6 +52,7 @@ func init() {
 }
 
 type JobRunsTableData struct {
+	Title       string
 	Runs        []model.JobRun
 	Total       int
 	PageSize    int
@@ -82,11 +83,17 @@ func (h *HtmlJobRunsTableHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	if params.others["host"] != "" && params.others["job"] != "" {
 		data.Runs, data.Total, nextPage, err = h.GetByHostAndJob(params.others["job"], params.others["host"], params.page, params.size)
+		data.Title = fmt.Sprintf(`Runs of "%s" on "%s"`, params.others["job"], params.others["host"])
 	} else if params.others["job"] != "" && params.others["before"] != "" {
 		data.Runs, data.Total, nextPage, err = h.GetByNameBefore(params.others["job"], params.before, params.page, params.size)
+		data.Title = fmt.Sprintf(`Runs of "%s" before %s`, params.others["job"], params.others["before"])
 	} else if params.others["host"] != "" {
 		data.Runs, data.Total, nextPage, err = h.GetByHost(params.others["host"], params.page, params.size)
+		data.Title = fmt.Sprintf(`Runs on "%s"`, params.others["host"])
+
 	} else if params.others["job"] != "" {
+		data.Title = fmt.Sprintf(`Runs of "%s"`, params.others["job"])
+
 		data.Runs, data.Total, nextPage, err = h.GetByJob(params.others["job"], params.page, params.size)
 	}
 	data.TotalPages = int(math.Ceil(float64(data.Total) / float64(params.size)))
