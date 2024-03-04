@@ -1,6 +1,8 @@
 package target
 
 import (
+	"fmt"
+
 	"github.com/pbaettig/moncron/internal/pkg/model"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
@@ -30,14 +32,14 @@ func (p PrometheusPushgateway) Name() string {
 
 func (p PrometheusPushgateway) Push(r model.JobRun) error {
 
-	p.exitCodeGauge.WithLabelValues(r.Name).Set(float64(r.Result.ExitCode))
-	p.durationGauge.WithLabelValues(r.Name).Set(r.Result.WallTime.Seconds())
-	p.maxRssGauge.WithLabelValues(r.Name).Set(float64(r.Result.MaxRssBytes))
-	p.lastExecutionGauge.WithLabelValues(r.Name).SetToCurrentTime()
-	p.userTimeGauge.WithLabelValues(r.Name).Set(float64(r.Result.UserTime.Seconds()))
-	p.systemTimeGauge.WithLabelValues(r.Name).Set(float64(r.Result.SystemTime.Seconds()))
+	p.exitCodeGauge.WithLabelValues(r.Name, r.Host.Name).Set(float64(r.Result.ExitCode))
+	p.durationGauge.WithLabelValues(r.Name, r.Host.Name).Set(r.Result.WallTime.Seconds())
+	p.maxRssGauge.WithLabelValues(r.Name, r.Host.Name).Set(float64(r.Result.MaxRssBytes))
+	p.lastExecutionGauge.WithLabelValues(r.Name, r.Host.Name).SetToCurrentTime()
+	p.userTimeGauge.WithLabelValues(r.Name, r.Host.Name).Set(float64(r.Result.UserTime.Seconds()))
+	p.systemTimeGauge.WithLabelValues(r.Name, r.Host.Name).Set(float64(r.Result.SystemTime.Seconds()))
 
-	return push.New(p.URL, r.Name).Gatherer(p.Registry).Push()
+	return push.New(p.URL, fmt.Sprintf("%s/%s", r.Name, r.Host.Name)).Gatherer(p.Registry).Push()
 }
 
 func NewPrometheusPushgateway(url string) PrometheusPushgateway {
@@ -47,37 +49,37 @@ func NewPrometheusPushgateway(url string) PrometheusPushgateway {
 		Namespace: namespace,
 		Subsystem: subsystem,
 		Name:      "exit_code",
-	}, []string{"name"})
+	}, []string{"job_name", "host_name"})
 
 	p.durationGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: subsystem,
 		Name:      "duration_seconds",
-	}, []string{"name"})
+	}, []string{"job_name", "host_name"})
 
 	p.maxRssGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: subsystem,
 		Name:      "max_rss_bytes",
-	}, []string{"name"})
+	}, []string{"job_name", "host_name"})
 
 	p.lastExecutionGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: subsystem,
 		Name:      "last_execution",
-	}, []string{"name"})
+	}, []string{"job_name", "host_name"})
 
 	p.userTimeGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: subsystem,
 		Name:      "user_time_seconds",
-	}, []string{"name"})
+	}, []string{"job_name", "host_name"})
 
 	p.systemTimeGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Subsystem: subsystem,
 		Name:      "system_time_seconds",
-	}, []string{"name"})
+	}, []string{"job_name", "host_name"})
 
 	p.Registry.MustRegister(p.exitCodeGauge)
 	p.Registry.MustRegister(p.durationGauge)
