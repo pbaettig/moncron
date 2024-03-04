@@ -17,7 +17,7 @@
                     <li>Job Runs</li>
                 </ul>
             </nav>
-            <h1>Job runs</h1>
+            <h1>{{.Title}}</h1>
         </header>
         <main>
             <table class="striped">
@@ -35,12 +35,12 @@
                 <tbody>
                 {{range .Runs}}
                     <tr>
-                        <td>{{.FinishedAt}}</td>
-                        <td>{{ since .FinishedAt }}</td>
+                        <td>{{if eq .Status "started-normally"}}{{.FinishedAt}}{{end}}</td>
+                        <td>{{if eq .Status "started-normally"}}{{ since .FinishedAt }}{{else}}{{since .StartedAt}}{{end}}</td>
                         <td><a href="?job={{.Name}}">{{.Name}}</a></td>
                         <td><a href="?host={{.Host.Name}}">{{.Host.Name}}</a></td>
-                        <td style="text-align:right">{{.Result.ExitCode}}</td>
-                        <td>{{if eq .Result.ExitCode 0}}✅{{else}}❌{{end}}</td>
+                        <td style="text-align:right">{{if eq .Status "started-normally"}}{{.Result.ExitCode}}{{end}}</td>
+                        <td>{{if eq .Status "started-normally"}}{{if eq .Result.ExitCode 0}}✅{{else}}❌{{end}}{{else}}🚫{{end}}</td>
                         <td><a href="/run.html?id={{.ID}}">Details</a></td>
                     </tr>
                 {{end}}

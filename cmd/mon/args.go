@@ -58,6 +58,7 @@ type cmdlineArgs struct {
 	Version        bool
 	LogFile        string
 	LogFileMaxSize int64
+	Once           bool
 	ProcessCmdline []string
 }
 
@@ -83,6 +84,9 @@ func (c *cmdlineArgs) FromEnv() error {
 	if logfile, err := getEnvString("MON_LOGFILE"); err == nil {
 		c.LogFile = logfile
 	}
+	if once, err := getEnvBool("MON_ONCE"); err == nil {
+		c.Once = once
+	}
 	if logfileSize, err := getEnvInt64("MON_LOGFILE_SIZE"); err == nil {
 		c.LogFileMaxSize = logfileSize
 	}
@@ -100,6 +104,7 @@ func (c *cmdlineArgs) FromCmdline() error {
 	version := flag.Bool("version", false, "")
 	logfile := flag.String("log", "", "Log File path")
 	logSize := flag.Int64("log-size", 10*1024*1024, "Log File Maximum Size")
+	once := flag.Bool("once", false, "ensure the specified command is not already running before starting")
 
 	flag.Parse()
 
@@ -129,6 +134,9 @@ func (c *cmdlineArgs) FromCmdline() error {
 	}
 	if logSize != nil && *logSize > 0 {
 		c.LogFileMaxSize = *logSize
+	}
+	if once != nil && *once {
+		c.Once = *once
 	}
 
 	c.ProcessCmdline = flag.Args()

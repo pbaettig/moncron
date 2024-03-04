@@ -73,7 +73,14 @@ func randomPastDate() time.Time {
 }
 
 func RandomJobRun() model.JobRun {
-	r := model.JobRun{Job: RandomJob(), Result: RandomResult()}
+	j := RandomJob()
+	r := j.PrepareRun()
+
+	if gofakeit.IntN(20) == 19 { // ~5%
+		r.NotRun()
+	}
+
+	r.Result = RandomResult()
 	r.Command = RandomCommand(r.Job.Command.Executable)
 	r.ID = gofakeit.UUID()
 	r.StartedAt = randomPastDate()
@@ -86,5 +93,5 @@ func RandomJobRun() model.JobRun {
 		Username: strings.ToLower(gofakeit.FirstName()),
 	}
 
-	return r
+	return *r
 }
