@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
@@ -23,14 +24,14 @@ func init() {
 	TemplateFuncs = make(template.FuncMap)
 
 	TemplateFuncs["convertBytes"] = func(v int64) string {
-		if v < 1024*1024 {
-			return fmt.Sprintf("%d KB", v/1024)
+		if v < 1000*1000 {
+			return fmt.Sprintf("%d KB", v/1000)
 		}
-		if v < 1024*1024*1024 {
-			return fmt.Sprintf("%.2f MB", float64(v)/1024/1024)
+		if v < 1000*1000*1000 {
+			return fmt.Sprintf("%.2f MB", float64(v)/1000/1000)
 		}
 
-		return fmt.Sprintf("%.2f GB", float64(v)/1024/1024/1024)
+		return fmt.Sprintf("%.2f GB", float64(v)/1000/1000/1000)
 	}
 
 	TemplateFuncs["since"] = func(t time.Time) string {
@@ -118,9 +119,10 @@ func (h *HtmlJobRunsTableHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 }
 
 type jobRunDetailsData struct {
-	Run           model.JobRun
-	Previous      []model.JobRun
-	TotalPrevious int
+	Run               model.JobRun
+	PreviousRuns      []model.JobRun
+	TotalPreviousRuns int
+	PreviousURL       string
 }
 
 type HtmlJobRunDetailsHandler struct {
@@ -143,8 +145,12 @@ func (h *HtmlJobRunDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		fmt.Fprint(w, err.Error())
 		return
 	}
+	data.PreviousURL = r.Header.Get("Referer")
+	if data.PreviousURL == "" || strings.Contains(data.PreviousURL, "/run.html?id=") {
+		data.PreviousURL = fmt.Sprintf("/runs.html?job=%s", data.Run.Name)
+	}
 
-	data.Previous, data.TotalPrevious, _, _ = h.GetByNameBefore(data.Run.Name, data.Run.FinishedAt, 0, 7)
+	data.PreviousRuns, data.TotalPreviousRuns, _, _ = h.GetByNameBefore(data.Run.Name, data.Run.FinishedAt, 0, 7)
 
 	err = tmpl.Execute(w, data)
 	if err != nil {

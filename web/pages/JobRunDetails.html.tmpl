@@ -14,7 +14,7 @@
             <nav aria-label="breadcrumb">
                 <ul>
                     <li><a href="/">Home</a></li>
-                    <li><a href="/runs.html?job={{.Run.Name}}">Job Runs</a></li>
+                    <li><a href="{{.PreviousURL}}">Job Runs</a></li>
                     <li>{{.Run.ID}}</li>
                 </ul>
             </nav>
@@ -24,46 +24,67 @@
         <main>
             <details open={true}>
                 <summary>Run Details</summary>
+                    <table>
+                        <tr>
+                            <td><b>Job name:</b></td>
+                            <td><a href="/runs.html?job={{.Run.Name}}">{{.Run.Name}}</a></td>
+                        </tr>
+                        <tr>
+                            <td><b>Ran on:</b></td>
+                            <td><a href="/runs.html?host={{.Run.Host.Name}}">{{.Run.Host.Name}}</a> ({{.Run.Host.OS.Name}}, {{.Run.Host.OS.Version}}, {{.Run.Host.OS.KernelVersion}})</td> 
+                        </tr>
+                        <tr>
+                            <td><b>Ran as:</b></td>
+                            <td>{{.Run.User.Username}} (uid: {{.Run.User.Uid}}, gid: {{.Run.User.Gid}})</td>
+                        </tr>
+                        <tr>
+                            <td><b>Started At:</b></td>
+                            <td>{{.Run.StartedAt}}</td>
+                        </tr>
+                        <tr>
+                            <td><b>Finished At:</b></td>
+                            <td>{{if eq .Run.Status "started-normally"}}{{.Run.FinishedAt}}{{end}}</td>
+                        </tr>
+                        <tr>
+                            <td><b>Duration:</b></td>
+                            <td>{{if eq .Run.Status "started-normally"}}{{.Run.Result.WallTime}}{{end}}</td>
+                        </tr>
+                        <tr>
+                            <td><b>Status:</b></td>
+                            <td>{{if eq .Run.Status "start-denied"}}process start denied because of -once{{else}}{{.Run.Status}}{{end}}</a></td>
+                        </tr>
+                        <tr>
+                            <td><b>Exit code:</b></td>
+                            <td>{{if eq .Run.Status "started-normally"}}{{.Run.Result.ExitCode}} {{if eq .Run.Result.ExitCode 0}}✅{{else}}❌{{end}} {{if gt .Run.Result.ReceivedSignal 0}}(received signal: {{.Run.Result.ReceivedSignal}}){{end}}{{else}}🚫 (not started){{end}}</td>
+                        </tr>
+                    </table>
+            </details>
+            <details open={true}>
+                <summary>Resources</summary>
                 <table>
                     <tr>
-                        <td><b>Job name:</b></td>
-                        <td><a href="/runs.html?job={{.Run.Name}}">{{.Run.Name}}</a></td>
+                        <td><b>CPU:</b></td>
+                        <td>
+                        {{if eq .Run.Status "started-normally"}}
+                            {{printf "%.2f" .Run.Result.CPUUtilization}}% ({{.Run.Result.SystemTime}} sys / {{.Run.Result.UserTime}} user / {{.Run.Result.IdleTime}} idle)
+                        {{end}}
+                        </td>
                     </tr>
                     <tr>
-                        <td><b>Status:</b></td>
-                        <td>{{if eq .Run.Status "started-normally"}}{{.Run.Status}}{{else}}process start denied because of -once{{end}}</a></td>
+                        <td><b>Memory: </b></td>
+                        <td>
+                        {{if eq .Run.Status "started-normally"}}
+                            {{printf "%.2f" .Run.Result.MemoryUtilization}}% ({{convertBytes .Run.Result.MaxRssBytes}})
+                        {{end}}
+                        </td>
                     </tr>
                     <tr>
-                        <td><b>Ran on:</b></td>
-                        <td><a href="/runs.html?host={{.Run.Host.Name}}">{{.Run.Host.Name}}</a> ({{.Run.Host.OS.Name}}, {{.Run.Host.OS.Version}}, {{.Run.Host.OS.KernelVersion}})</td> 
-                    </tr>
-                    <tr>
-                        <td><b>Ran as:</b></td>
-                        <td>{{.Run.User.Username}} (uid: {{.Run.User.Uid}}, gid: {{.Run.User.Gid}})</td>
-                    </tr>
-                    <tr>
-                        <td><b>Started At:</b></td>
-                        <td>{{.Run.StartedAt}}</td>
-                    </tr>
-                    <tr>
-                        <td><b>Finished At:</b></td>
-                        <td>{{if eq .Run.Status "started-normally"}}{{.Run.FinishedAt}}{{end}}</td>
-                    </tr>
-                    <tr>
-                        <td><b>Exit code:</b></td>
-                        <td>{{if eq .Run.Status "started-normally"}}{{.Run.Result.ExitCode}} {{if eq .Run.Result.ExitCode 0}}✅{{else}}❌{{end}} {{if gt .Run.Result.ReceivedSignal 0}}(received signal: {{.Run.Result.ReceivedSignal}}){{end}}{{else}}🚫 (not started){{end}}</td>
-                    </tr>
-                    <tr>
-                        <td><b>Duration:</b></td>
-                        <td>{{if eq .Run.Status "started-normally"}}{{.Run.Result.WallTime}}{{end}}</td>
-                    </tr>
-                    <tr>
-                        <td><b>CPU Time:</b></td>
-                        <td>{{if eq .Run.Status "started-normally"}}{{.Run.Result.SystemTime}} sys / {{.Run.Result.UserTime}} user{{end}}</td>
-                    </tr>
-                    <tr>
-                        <td><b>Max. RSS</b></td>
-                        <td>{{if eq .Run.Status "started-normally"}}{{convertBytes .Run.Result.MaxRssBytes}}{{end}}</td>
+                        <td><b>IO: </b></td>
+                        <td>
+                        {{if eq .Run.Status "started-normally"}}
+                            Read: {{convertBytes .Run.Result.IOBytesRead}} / Write: {{convertBytes .Run.Result.IOBytesWritten}}
+                        {{end}}
+                        </td>
                     </tr>
                 </table>
             </details>
@@ -81,11 +102,11 @@
                 </table>
             </details>
             <details open={true}>
-                <summary>Previous Runs (showing {{ len .Previous }} out of {{.TotalPrevious}})</summary>
+                <summary>Previous Runs (showing {{ len .PreviousRuns }} out of {{.TotalPreviousRuns}})</summary>
                 <table>
                     <tbody>
                     {{$runID := .Run.ID}}
-                    {{range .Previous}}
+                    {{range .PreviousRuns}}
                         <tr>
                             <td>{{ if eq .Status "started-normally" }} {{if eq .Result.ExitCode 0}}✅{{else}}❌{{end}}{{end}}</td>
                             <td>{{ if eq .Status "started-normally" }}finished {{.FinishedAt}} {{else}} job run denied {{end}} on <a href="/runs.html?host={{.Host.Name}}">{{.Host.Name}}</a></td>
@@ -94,7 +115,7 @@
                     {{end}}
                     </tbody>
                 </table>
-                {{if gt (len .Previous) 0}}
+                {{if gt (len .PreviousRuns) 0}}
                     <small><a href="/runs.html?job={{.Run.Name}}&before={{.Run.FinishedAt|escapeTime}}">Show All</a></small>
                 {{end}}
             </details>

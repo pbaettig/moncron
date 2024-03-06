@@ -13,12 +13,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
 	"github.com/shirou/gopsutil/v3/host"
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/sirupsen/logrus"
 )
 
 const (
 	ProcessStartedNormally = "started-normally"
 	ProceessNotStarted     = "start-denied"
+
+	IOBlockSize = 512
 )
 
 type Job struct {
@@ -51,15 +54,24 @@ func (j *Job) PrepareRun() *JobRun {
 }
 
 type Result struct {
-	ExitCode       int
-	SystemTime     time.Duration
-	UserTime       time.Duration
-	WallTime       time.Duration
-	Killed         bool
-	ReceivedSignal syscall.Signal
-	MaxRssBytes    int64
-	Stdout         string
-	Stderr         string
+	ExitCode                   int
+	SystemTime                 time.Duration
+	UserTime                   time.Duration
+	IdleTime                   time.Duration
+	WallTime                   time.Duration
+	MemoryUtilization          float64
+	CPUUtilization             float64
+	IOBlocksRead               int64
+	IOBytesRead                int64
+	IOBlocksWritten            int64
+	IOBytesWritten             int64
+	VoluntaryContextSwitches   int64
+	InvoluntaryContextSwitches int64
+	Killed                     bool
+	ReceivedSignal             syscall.Signal
+	MaxRssBytes                int64
+	Stdout                     string
+	Stderr                     string
 }
 
 type JobRun struct {
@@ -178,9 +190,27 @@ func (r *JobRun) Run() error {
 
 	rusage, ok := r.Job.Command.cmd.ProcessState.SysUsage().(*syscall.Rusage)
 	if ok {
+		r.Result.MaxRssBytes = rusage.Maxrss * 1024
+		m, err := mem.VirtualMemory()
+		if err == nil && m != nil {
+			r.Result.MemoryUtilization = float64(r.Result.MaxRssBytes) * 100 / float64(m.Total)
+		}
+
+		r.Result.IOBlocksRead = rusage.Inblock
+		r.Result.IOBytesRead = rusage.Inblock * IOBlockSize
+
+		r.Result.IOBlocksWritten = rusage.Oublock
+		r.Result.IOBytesWritten = rusage.Oublock * IOBlockSize
+
+		r.Result.InvoluntaryContextSwitches = rusage.Nivcsw
+
+		r.Result.VoluntaryContextSwitches = rusage.Nvcsw
+
 		r.Result.SystemTime = time.Duration(rusage.Stime.Nano()) * time.Nanosecond
 		r.Result.UserTime = time.Duration(rusage.Utime.Nano()) * time.Nanosecond
-		r.Result.MaxRssBytes = rusage.Maxrss
+		r.Result.IdleTime = r.Result.WallTime - r.Result.SystemTime - r.Result.UserTime
+		r.Result.CPUUtilization = ((float64(r.Result.SystemTime) + float64(r.Result.UserTime)) * 100.0) / float64(r.Result.WallTime)
+
 	}
 
 	return err
