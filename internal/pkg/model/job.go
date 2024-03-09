@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorhill/cronexpr"
 	"github.com/shirou/gopsutil/v3/host"
-	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,6 +22,13 @@ const (
 
 	IOBlockSize = 512
 )
+
+type Counts struct {
+	Successful int
+	Failed     int
+	Denied     int
+	Total      int
+}
 
 type Job struct {
 	Name        string `validate:"required"`
@@ -54,24 +60,38 @@ func (j *Job) PrepareRun() *JobRun {
 }
 
 type Result struct {
-	ExitCode                   int
-	SystemTime                 time.Duration
-	UserTime                   time.Duration
-	IdleTime                   time.Duration
-	WallTime                   time.Duration
-	MemoryUtilization          float64
-	CPUUtilization             float64
-	IOBlocksRead               int64
-	IOBytesRead                int64
-	IOBlocksWritten            int64
-	IOBytesWritten             int64
-	VoluntaryContextSwitches   int64
-	InvoluntaryContextSwitches int64
-	Killed                     bool
+	ExitCode   int
+	SystemTime time.Duration
+	UserTime   time.Duration
+	WallTime   time.Duration
+
+	IOBlocksRead               uint64
+	IOBytesRead                uint64
+	IOBlocksWritten            uint64
+	IOBytesWritten             uint64
+	VoluntaryContextSwitches   uint64
+	InvoluntaryContextSwitches uint64
 	ReceivedSignal             syscall.Signal
-	MaxRssBytes                int64
+	MaxRssBytes                uint64
+	MemoryUtilization          float64
 	Stdout                     string
 	Stderr                     string
+}
+
+func (r Result) Killed() bool {
+	return r.ReceivedSignal == syscall.SIGKILL
+}
+
+func (r Result) CPUUtilization() float64 {
+	return ((float64(r.SystemTime) + float64(r.UserTime)) * 100.0) / float64(r.WallTime)
+}
+
+func (r Result) IdleTime() time.Duration {
+	idle := r.WallTime - r.SystemTime - r.UserTime
+	if idle < 0 {
+		return time.Duration(0)
+	}
+	return idle
 }
 
 type JobRun struct {
@@ -105,6 +125,8 @@ func (r *JobRun) setHost() error {
 	r.Host.OS.Name = hi.Platform
 	r.Host.OS.KernelVersion = hi.KernelVersion
 	r.Host.OS.Version = hi.PlatformVersion
+	(&r.Host).SetCPU()
+	(&r.Host).SetMemory()
 	return nil
 }
 
@@ -170,6 +192,9 @@ func (r *JobRun) Run() error {
 	if err != nil {
 		return err
 	}
+
+	r.StartedAt = time.Now().UTC()
+
 	r.Status = ProcessStartedNormally
 	r.StartedAt = time.Now().UTC()
 	logrus.Info("started")
@@ -184,33 +209,27 @@ func (r *JobRun) Run() error {
 
 	sys, ok := r.Job.Command.cmd.ProcessState.Sys().(syscall.WaitStatus)
 	if ok {
-		r.Result.Killed = sys.Signal() == syscall.SIGKILL
 		r.Result.ReceivedSignal = sys.Signal()
 	}
 
 	rusage, ok := r.Job.Command.cmd.ProcessState.SysUsage().(*syscall.Rusage)
 	if ok {
-		r.Result.MaxRssBytes = rusage.Maxrss * 1024
-		m, err := mem.VirtualMemory()
-		if err == nil && m != nil {
-			r.Result.MemoryUtilization = float64(r.Result.MaxRssBytes) * 100 / float64(m.Total)
-		}
+		r.Result.MaxRssBytes = uint64(rusage.Maxrss) * 1024
 
-		r.Result.IOBlocksRead = rusage.Inblock
-		r.Result.IOBytesRead = rusage.Inblock * IOBlockSize
+		r.Result.IOBlocksRead = uint64(rusage.Inblock)
+		r.Result.IOBytesRead = uint64(rusage.Inblock) * IOBlockSize
 
-		r.Result.IOBlocksWritten = rusage.Oublock
-		r.Result.IOBytesWritten = rusage.Oublock * IOBlockSize
+		r.Result.IOBlocksWritten = uint64(rusage.Oublock)
+		r.Result.IOBytesWritten = uint64(rusage.Oublock) * IOBlockSize
 
-		r.Result.InvoluntaryContextSwitches = rusage.Nivcsw
+		r.Result.InvoluntaryContextSwitches = uint64(rusage.Nivcsw)
 
-		r.Result.VoluntaryContextSwitches = rusage.Nvcsw
+		r.Result.VoluntaryContextSwitches = uint64(rusage.Nvcsw)
 
 		r.Result.SystemTime = time.Duration(rusage.Stime.Nano()) * time.Nanosecond
 		r.Result.UserTime = time.Duration(rusage.Utime.Nano()) * time.Nanosecond
-		r.Result.IdleTime = r.Result.WallTime - r.Result.SystemTime - r.Result.UserTime
-		r.Result.CPUUtilization = ((float64(r.Result.SystemTime) + float64(r.Result.UserTime)) * 100.0) / float64(r.Result.WallTime)
 
+		r.Result.MemoryUtilization = (float64(r.Result.MaxRssBytes) * 100) / float64(r.Host.MemoryBytes)
 	}
 
 	return err

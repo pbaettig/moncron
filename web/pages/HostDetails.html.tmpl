@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <!--<link rel="stylesheet" href="/static/simple.min.css">-->
+        <link rel="stylesheet" href="/static/pico.min.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+        <link rel="manifest" href="/static/site.webmanifest">
+    </head>
+    <body class="container-fluid">
+        <header>
+            <nav aria-label="breadcrumb">
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li>{{.Host.Name}} Stats</li>
+                </ul>
+            </nav>
+             
+            <h2>Statistics for {{.Host.Name}}</h2>
+        </header>
+
+        <main>
+            <details open={true}>
+                <summary>Details</summary>
+                <table>                    
+                    <tr>
+                        <td ><b>Name:</b></td>
+                        <td>{{.Host.Name}}</td>
+                    </tr>
+                    <tr>
+                        <td><b>OS</b>:</td>
+                        <td>{{.Host.OS.Name}}</td>
+                    </tr>
+                    <tr>
+                        <td><b>OS Release</b>:</td>
+                        <td>{{.Host.OS.Version}}</td>
+                    </tr>
+                     <tr>
+                        <td ><b>Kernel Version:</b></td>
+                        <td>{{.Host.OS.KernelVersion}}</td>
+                    </tr>
+                </table>
+            </details>
+
+            <details open={true}>
+                <summary>Jobs</summary>
+                <table class="striped">
+                    <thead>
+                        <tr>
+                            <th scope="col"></th>
+                            <th scope="col">Successful</th>
+                            <th scope="col">Failed</th>
+                            <th scope="col">Denied</th>
+                            <th scope="col">Total</th>
+                        </tr>
+                    </thead>
+                    {{range $job,$count := .JobRunsCount }}
+                    <tr>
+                        <td ><b>{{$job}}</b></td>
+                        <td style="text-align:left">{{$count.Successful}}</td>
+                        <td style="text-align:left">{{$count.Failed}}</td>
+                        <td style="text-align:left">{{$count.Denied}}</td>
+                        <td style="text-align:left">{{$count.Total}}</td>
+                    </tr>
+                    {{end}}
+                    <tfoot>
+                        <tr>
+                        <th scope="row">Total</th>
+                        <td style="text-align:left">{{.Total.Successful}}</td>
+                        <td style="text-align:left">{{.Total.Failed}}</td>
+                        <td style="text-align:left">{{.Total.Denied}}</td>
+                        <td style="text-align:left">{{.Total.Total}}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </details>
+            <br>
+
+        </main>
+    </body>
+</html>

@@ -286,3 +286,20 @@ func (h ApiGetHosts) Respond(r *http.Request) (resp HandlerResponse) {
 	resp.content = convertToAnySlice(hosts)
 	return
 }
+
+type ApiGetHostNames struct {
+	store.JobRunStorer
+}
+
+func (h ApiGetHostNames) Name() string {
+	return "get-host-names"
+}
+
+func (h ApiGetHostNames) Respond(r *http.Request) (resp HandlerResponse) {
+	var hosts []string
+	qp := getQueryParams(r)
+
+	hosts, resp.total, resp.internalErr = h.GetHostNames(qp.page, qp.size)
+	resp.content = convertToAnySlice(hosts)
+	return
+}

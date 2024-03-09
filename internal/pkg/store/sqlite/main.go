@@ -124,9 +124,6 @@ func (db *DB) GetByHost(hostName string, page int, size int) (runs []model.JobRu
 		[]string{"data"},
 		[]where{{`json_extract(data, "$.Host.Name") = ?`, hostName}}, page, size)
 
-	if len(runs) < total {
-		next = page + 1
-	}
 	return
 }
 
@@ -202,6 +199,9 @@ func (db *DB) Get(id string) (run model.JobRun, err error) {
 	if err != nil {
 		return
 	}
+	if len(runs) == 0 {
+		return run, fmt.Errorf("no run with id %s found", id)
+	}
 
 	run = runs[0]
 	return
@@ -219,6 +219,18 @@ func (db *DB) GetHosts(page int, size int) (hosts []model.Host, total int, err e
 	return
 }
 
+func (db *DB) GetHostNames(page int, size int) (hosts []string, total int, err error) {
+	hosts, total, _, err = selectFromDB[string](
+		db,
+		"jobRuns",
+		[]string{`DISTINCT(json_quote(json_extract(data, "$.Host.Name")))`},
+		[]where{},
+		page,
+		size,
+	)
+	return
+}
+
 func (db *DB) GetJobNames(page int, size int) (jobs []string, total int, err error) {
 	jobs, total, _, err = selectFromDB[string](
 		db,
@@ -228,6 +240,89 @@ func (db *DB) GetJobNames(page int, size int) (jobs []string, total int, err err
 		page,
 		size,
 	)
+	return
+}
+
+func (db *DB) GetStatsByHost() (stats map[string]*model.Counts, err error) {
+	successQ := db.stmt.Select(`json_extract(data, "$.Host.Name") as hostname`, `COUNT(*)`).
+		From(`jobRuns`).
+		Where(`json_extract(data, "$.Status") = "?"`, model.ProcessStartedNormally).
+		Where(`json_extract(data, "$.Result.ExitCode") = 0`).
+		GroupBy(`hostname`)
+
+	failedQ := db.stmt.Select(`json_extract(data, "$.Host.Name") as hostname`, `COUNT(*)`).
+		From(`jobRuns`).
+		Where(`json_extract(data, "$.Status") = "?"`, model.ProcessStartedNormally).
+		Where(`json_extract(data, "$.Result.ExitCode") != 0`).
+		GroupBy(`hostname`)
+	deniedQ := db.stmt.Select(`json_extract(data, "$.Host.Name") as hostname`, `COUNT(*)`).
+		From(`jobRuns`).
+		Where(`json_extract(data, "$.Status") = "?"`, model.ProcessStartedNormally).
+		Where(`json_extract(data, "$.Result.ExitCode") != 0`).
+		GroupBy(`hostname`)
+
+	type result struct {
+		hostname string
+		count    int
+	}
+
+	runQuery := func(q sq.SelectBuilder) (results []result, err error) {
+		rows, err := q.Query()
+		if err != nil {
+			return
+		}
+		defer rows.Close()
+
+		r := result{}
+		for rows.Next() {
+			if err = rows.Scan(&r); err != nil {
+				return
+			}
+
+			results = append(results, r)
+		}
+		return
+	}
+
+	results, err := runQuery(successQ)
+	if err != nil {
+		return
+	}
+	for _, r := range results {
+		if _, ok := stats[r.hostname]; !ok {
+			stats[r.hostname] = new(Counts)
+		}
+
+		stats[r.hostname].Successful = r.count
+		stats[r.hostname].Total += r.count
+	}
+
+	results, err = runQuery(failedQ)
+	if err != nil {
+		return
+	}
+	for _, r := range results {
+		if _, ok := stats[r.hostname]; !ok {
+			stats[r.hostname] = new(Counts)
+		}
+
+		stats[r.hostname].Failed = r.count
+		stats[r.hostname].Total += r.count
+	}
+
+	results, err = runQuery(deniedQ)
+	if err != nil {
+		return
+	}
+	for _, r := range results {
+		if _, ok := stats[r.hostname]; !ok {
+			stats[r.hostname] = new(Counts)
+		}
+
+		stats[r.hostname].Denied = r.count
+		stats[r.hostname].Total += r.count
+	}
+
 	return
 }
 

@@ -84,6 +84,7 @@ func checkForRunningProcess(args []string) *process.Process {
 func main() {
 	var err error
 
+	log.SetLevel(log.DebugLevel)
 	args := new(cmdlineArgs)
 	// take values from the environment first
 	args.FromEnv()

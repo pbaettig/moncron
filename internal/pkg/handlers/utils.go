@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -48,4 +50,27 @@ func convertToAnySlice[T any](slice []T) []any {
 		result[i] = v
 	}
 	return result
+}
+
+func getPreviousURLFromReferer(r *http.Request, defaultValue string) string {
+	referer := r.Header.Get("Referer")
+	if referer == "" || strings.HasSuffix(referer, r.RequestURI) {
+		return defaultValue
+	}
+
+	return referer
+}
+
+func humanReadableBytes(v uint64, base uint64) string {
+	mega := base * base
+	giga := base * base * base
+
+	if v < mega {
+		return fmt.Sprintf("%d KB", v/1000)
+	}
+	if v < giga {
+		return fmt.Sprintf("%.2f MB", float64(v)/float64(mega))
+	}
+
+	return fmt.Sprintf("%.2f GB", float64(v)/float64(giga))
 }

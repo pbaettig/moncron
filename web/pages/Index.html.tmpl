@@ -34,7 +34,9 @@
                     <table class="striped">
                     {{range .JobNames}}
                         <tr>
-                        <td><a href="/runs.html?job={{.}}">{{.}}</a></td>
+                        <td>{{.}}</td>
+                        <td><a href="/runs.html?job={{.}}">Runs</a></td>
+                        <td><a href="/job.html?job={{.}}">Stats</a></td>
                         </tr>
                     {{end}}
                     </table>
@@ -46,7 +48,7 @@
                         <input id="hosts-input" list="hosts-datalist" name="hosts">
                             <datalist id="hosts-datalist">
                             {{range .Hosts}}
-                            <option>{{.Name}}</option>
+                            <option>{{.}}</option>
                             {{end}}
                             </datalist>
                         </input>
@@ -56,7 +58,10 @@
                     <table class="striped">
                     {{range .Hosts}}
                         <tr>
-                        <td><a href="/runs.html?host={{.Name}}">{{.Name}}</a></td>
+                        <td>{{.}}</td>
+                        <td><a href="/runs.html?host={{.}}">Runs</a></td>
+                        <td><a href="/host.html?host={{.}}">Stats</a></td>
+
                         </tr>
                     {{end}}
                     </table>

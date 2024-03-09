@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"text/template"
 	"time"
 
@@ -23,15 +22,11 @@ var (
 func init() {
 	TemplateFuncs = make(template.FuncMap)
 
-	TemplateFuncs["convertBytes"] = func(v int64) string {
-		if v < 1000*1000 {
-			return fmt.Sprintf("%d KB", v/1000)
-		}
-		if v < 1000*1000*1000 {
-			return fmt.Sprintf("%.2f MB", float64(v)/1000/1000)
-		}
-
-		return fmt.Sprintf("%.2f GB", float64(v)/1000/1000/1000)
+	TemplateFuncs["convertBytesSI"] = func(v uint64) string {
+		return humanReadableBytes(v, 1000)
+	}
+	TemplateFuncs["convertBytes"] = func(v uint64) string {
+		return humanReadableBytes(v, 1024)
 	}
 
 	TemplateFuncs["since"] = func(t time.Time) string {
@@ -50,6 +45,13 @@ func init() {
 		return url.QueryEscape(v.Format(time.RFC3339Nano))
 	}
 
+}
+
+type count struct {
+	Successful int
+	Failed     int
+	Denied     int
+	Total      int
 }
 
 type JobRunsTableData struct {
@@ -145,10 +147,7 @@ func (h *HtmlJobRunDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		fmt.Fprint(w, err.Error())
 		return
 	}
-	data.PreviousURL = r.Header.Get("Referer")
-	if data.PreviousURL == "" || strings.Contains(data.PreviousURL, "/run.html?id=") {
-		data.PreviousURL = fmt.Sprintf("/runs.html?job=%s", data.Run.Name)
-	}
+	data.PreviousURL = getPreviousURLFromReferer(r, fmt.Sprintf("/runs.html?job=%s", data.Run.Name))
 
 	data.PreviousRuns, data.TotalPreviousRuns, _, _ = h.GetByNameBefore(data.Run.Name, data.Run.FinishedAt, 0, 7)
 
@@ -160,7 +159,7 @@ func (h *HtmlJobRunDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 type indexData struct {
 	JobNames   []string
-	Hosts      []model.Host
+	Hosts      []string
 	TotalJobs  int
 	TotalHosts int
 }
@@ -180,10 +179,192 @@ func (h *HtmlIndexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data.JobNames, data.TotalJobs, _ = h.GetJobNames(0, 100)
-	data.Hosts, data.TotalHosts, _ = h.GetHosts(0, 100)
+	data.Hosts, data.TotalHosts, _ = h.GetHostNames(0, 100)
 
 	err = tmpl.Execute(w, data)
 	if err != nil {
 		log.Errorf("couldn't render template: %s", err.Error())
 	}
+}
+
+type jobDetails struct {
+	MinDuration    time.Duration
+	MinDurationID  string
+	MaxDuration    time.Duration
+	MaxDurationID  string
+	MinRSS         uint64
+	MinRSSID       string
+	MaxRSS         uint64
+	MaxRSSID       string
+	FailedRuns     int
+	SuccessfulRuns int
+	DeniedRuns     int
+	TotalRuns      int
+	HostNames      []string
+	JobName        string
+	JobRunsCount   map[string]*count
+	Total          count
+	PreviousURL    string
+}
+
+type HtmlJobDetailsHandler struct {
+	store.JobRunStorer
+}
+
+func (h *HtmlJobDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		page int = 0
+		next int = 1
+		runs []model.JobRun
+		err  error
+		jd   jobDetails
+	)
+
+	tmpl, err := template.New("JobDetails.html.tmpl").Funcs(TemplateFuncs).ParseFS(pages.FS, "JobDetails.html.tmpl")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, err.Error())
+		return
+	}
+
+	jd.MinDuration = time.Duration(math.MaxInt64)
+	jd.MinRSS = math.MaxInt64
+	jd.JobName = r.URL.Query().Get("job")
+	jd.PreviousURL = getPreviousURLFromReferer(r, fmt.Sprintf("/runs.html?job=%s", jd.JobName))
+	jd.JobRunsCount = make(map[string]*count)
+	// jd.HostNames = make([]string, 0)
+	// hostNames := make(map[string]struct{})
+	log.Debugf("MinRss: %d, MinDuration: %s", jd.MinRSS, jd.MinDuration)
+
+	for next > 0 {
+		runs, _, next, err = h.GetByJob(jd.JobName, page, 10000)
+		page = next
+
+		if err != nil {
+			log.Error(err)
+			break
+		}
+		for _, run := range runs {
+			if _, ok := jd.JobRunsCount[run.Host.Name]; !ok {
+				jd.JobRunsCount[run.Host.Name] = new(count)
+			}
+
+			if run.Status == model.ProcessStartedNormally {
+				if run.Result.ExitCode == 0 {
+					jd.JobRunsCount[run.Host.Name].Successful++
+					jd.Total.Successful++
+				} else {
+					jd.JobRunsCount[run.Host.Name].Failed++
+					jd.Total.Failed++
+				}
+			} else {
+				jd.JobRunsCount[run.Host.Name].Denied++
+				jd.Total.Denied++
+
+			}
+
+			jd.JobRunsCount[run.Host.Name].Total++
+			jd.Total.Total++
+
+			if run.Result.WallTime < jd.MinDuration {
+				jd.MinDuration = run.Result.WallTime
+				jd.MinDurationID = run.ID
+			}
+			if run.Result.WallTime > jd.MaxDuration {
+				jd.MaxDuration = run.Result.WallTime
+				jd.MaxDurationID = run.ID
+			}
+			if run.Result.MaxRssBytes < jd.MinRSS {
+				jd.MinRSS = run.Result.MaxRssBytes
+				jd.MinRSSID = run.ID
+			}
+			if run.Result.MaxRssBytes > jd.MaxRSS {
+				jd.MaxRSS = run.Result.MaxRssBytes
+				jd.MaxRSSID = run.ID
+			}
+
+		}
+	}
+
+	jd.TotalRuns = jd.SuccessfulRuns + jd.FailedRuns + jd.DeniedRuns
+
+	err = tmpl.Execute(w, jd)
+	if err != nil {
+		log.Error(err)
+	}
+
+}
+
+type hostDetails struct {
+	Host         model.Host
+	JobRunsCount map[string]*count
+	Total        count
+	PreviousURL  string
+}
+
+type HtmlHostDetailsHandler struct {
+	store.JobRunStorer
+}
+
+func (h *HtmlHostDetailsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		page int = 0
+		next int = 1
+		runs []model.JobRun
+		err  error
+		hd   hostDetails
+	)
+
+	tmpl, err := template.New("HostDetails.html.tmpl").Funcs(TemplateFuncs).ParseFS(pages.FS, "HostDetails.html.tmpl")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, err.Error())
+		return
+	}
+
+	hostName := r.URL.Query().Get("host")
+	hd.PreviousURL = getPreviousURLFromReferer(r, fmt.Sprintf("/runs.html?host=%s", hostName))
+	hd.JobRunsCount = make(map[string]*count)
+
+	for next > 0 {
+		runs, _, next, err = h.GetByHost(hostName, page, 1000)
+		page = next
+		if err != nil {
+			log.Error(err)
+			break
+		}
+		if len(runs) > 0 {
+			hd.Host = runs[0].Host
+		}
+		log.Debugf("Runs: %d, Current page: %d, Next page: %d", len(runs), page, next)
+		for _, run := range runs {
+			if _, ok := hd.JobRunsCount[run.Name]; !ok {
+				hd.JobRunsCount[run.Name] = new(count)
+			}
+
+			if run.Status == model.ProceessNotStarted {
+				hd.JobRunsCount[run.Name].Denied++
+				hd.Total.Denied++
+			} else {
+				if run.Result.ExitCode == 0 {
+					hd.JobRunsCount[run.Name].Successful++
+					hd.Total.Successful++
+
+				} else {
+					hd.JobRunsCount[run.Name].Failed++
+					hd.Total.Failed++
+				}
+			}
+
+			hd.JobRunsCount[run.Name].Total++
+			hd.Total.Total++
+		}
+
+	}
+
+	err = tmpl.Execute(w, hd)
+	if err != nil {
+		log.Error(err)
+	}
+
 }

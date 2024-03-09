@@ -23,6 +23,7 @@
             <table class="striped">
                 <thead>
                     <tr>
+                        <th scope="col">Started At</h6></th>
                         <th scope="col">Finished At</h6></th>
                         <th scope="col">Age</th>
                         <th scope="col">Name</th>
@@ -35,10 +36,11 @@
                 <tbody>
                 {{range .Runs}}
                     <tr>
+                        <td>{{.StartedAt}}</td>
                         <td>{{if eq .Status "started-normally"}}{{.FinishedAt}}{{end}}</td>
                         <td>{{if eq .Status "started-normally"}}{{ since .FinishedAt }}{{else}}{{since .StartedAt}}{{end}}</td>
-                        <td><a href="?job={{.Name}}">{{.Name}}</a></td>
-                        <td><a href="?host={{.Host.Name}}">{{.Host.Name}}</a></td>
+                        <td><a href="/job.html?job={{.Name}}">{{.Name}}</a></td>
+                        <td><a href="/host.html?host={{.Host.Name}}">{{.Host.Name}}</a></td>
                         <td style="text-align:right">{{if eq .Status "started-normally"}}{{.Result.ExitCode}}{{end}}</td>
                         <td>{{if eq .Status "started-normally"}}{{if eq .Result.ExitCode 0}}✅{{else}}❌{{end}}{{else}}🚫{{end}}</td>
                         <td><a href="/run.html?id={{.ID}}">Details</a></td>

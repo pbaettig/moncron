@@ -6,6 +6,10 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/sirupsen/logrus"
 )
 
 type OperatingSystem struct {
@@ -14,9 +18,49 @@ type OperatingSystem struct {
 	KernelVersion string
 }
 
+type CPU struct {
+	PhysicalID string
+	Model      string
+	Cores      int
+}
+
 type Host struct {
-	Name string
-	OS   OperatingSystem
+	Name        string
+	OS          OperatingSystem
+	CPUs        []CPU
+	MemoryBytes uint64
+}
+
+func (h *Host) SetMemory() {
+	m, err := mem.VirtualMemory()
+	if err == nil || m != nil {
+		h.MemoryBytes = m.Total
+	}
+}
+
+func (h *Host) SetCPU() {
+	cpus := make(map[string][]cpu.InfoStat)
+
+	h.CPUs = make([]CPU, 0)
+	cpuInfo, err := cpu.Info()
+	if err != nil {
+		logrus.Error(err)
+	}
+
+	for _, c := range cpuInfo {
+		if _, ok := cpus[c.PhysicalID]; !ok {
+			cpus[c.PhysicalID] = make([]cpu.InfoStat, 0)
+		}
+		cpus[c.PhysicalID] = append(cpus[c.PhysicalID], c)
+	}
+
+	for id, c := range cpus {
+		h.CPUs = append(h.CPUs, CPU{
+			PhysicalID: id,
+			Model:      c[0].ModelName,
+			Cores:      len(c),
+		})
+	}
 }
 
 func unquote(s string) string {

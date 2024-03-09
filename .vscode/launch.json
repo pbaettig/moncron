@@ -11,7 +11,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "cmd/mon/",
-            "args": ["-stdout", "--", "sleep 1"]
+            "args": ["-name", "debug", "-stdout", "--", "python3 -c 'import random; import sys; print(sum([n for n in range(5_000_000)])); sys.exit(random.randint(0,1))'"]
         },
         {
             "name": "server",

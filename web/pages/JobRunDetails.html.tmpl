@@ -14,7 +14,7 @@
             <nav aria-label="breadcrumb">
                 <ul>
                     <li><a href="/">Home</a></li>
-                    <li><a href="{{.PreviousURL}}">Job Runs</a></li>
+                    <li><a href="/runs.html?job={{.Run.Name}}">Job Runs</a></li>
                     <li>{{.Run.ID}}</li>
                 </ul>
             </nav>
@@ -27,11 +27,11 @@
                     <table>
                         <tr>
                             <td><b>Job name:</b></td>
-                            <td><a href="/runs.html?job={{.Run.Name}}">{{.Run.Name}}</a></td>
+                            <td><a href="/job.html?job={{.Run.Name}}">{{.Run.Name}}</a></td>
                         </tr>
                         <tr>
                             <td><b>Ran on:</b></td>
-                            <td><a href="/runs.html?host={{.Run.Host.Name}}">{{.Run.Host.Name}}</a> ({{.Run.Host.OS.Name}}, {{.Run.Host.OS.Version}}, {{.Run.Host.OS.KernelVersion}})</td> 
+                            <td><a href="/host.html?host={{.Run.Host.Name}}">{{.Run.Host.Name}}</a></td> 
                         </tr>
                         <tr>
                             <td><b>Ran as:</b></td>
@@ -88,6 +88,33 @@
                     </tr>
                 </table>
             </details>
+            <details open={true}>
+                <summary>Host</summary>
+                <table>
+                    <tr>
+                        <td><b>Hostname:</b></td>
+                        <td>{{.Run.Host.Name}}</td>
+                    </tr>
+                     <tr>
+                        <td><b>OS:</b></td>
+                        <td>{{.Run.Host.OS.Name}} {{.Run.Host.OS.Version}} ({{.Run.Host.OS.KernelVersion}})</td>
+                    </tr>
+                    <tr>
+                        <td><b>CPU:</b></td>
+                        <td>
+                            <ul>
+                                {{range .Run.Host.CPUs}}
+                                <li>CPU #{{.PhysicalID}} {{.Model}} ({{.Cores}} cores)</li>
+                                {{end}}
+                            </ul>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><b>RAM: </b></td>
+                        <td>{{convertBytes .Run.Host.MemoryBytes}}</td>
+                    </tr>
+                </table>
+            </details>
             <details>
                 <summary>Environment</summary>
                 <table>
@@ -109,7 +136,7 @@
                     {{range .PreviousRuns}}
                         <tr>
                             <td>{{ if eq .Status "started-normally" }} {{if eq .Result.ExitCode 0}}✅{{else}}❌{{end}}{{end}}</td>
-                            <td>{{ if eq .Status "started-normally" }}finished {{.FinishedAt}} {{else}} job run denied {{end}} on <a href="/runs.html?host={{.Host.Name}}">{{.Host.Name}}</a></td>
+                            <td>{{ if eq .Status "started-normally" }}finished {{.FinishedAt}} {{else}} job run denied {{end}} on <a href="/host.html?host={{.Host.Name}}">{{.Host.Name}}</a></td>
                             <td>{{if ne .ID $runID}}<a href="/run.html?id={{.ID}}">Details</a>{{end}}</td>
                         </tr>
                     {{end}}
